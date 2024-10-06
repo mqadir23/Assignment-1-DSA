@@ -1,0 +1,151 @@
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+using namespace std;
+
+struct Process {
+    int process_id, execution_time, remaining_time;
+    Process* next;
+};
+
+int next_process_id = 1;
+
+Process* createProcess(int execution_time) {
+    Process* newProcess = new Process;
+    newProcess->process_id = next_process_id++;
+    newProcess->execution_time = execution_time;
+    newProcess->remaining_time = execution_time;
+    newProcess->next = nullptr;
+    return newProcess;
+}
+
+void insertProcess(Process*& head, int execution_time) {
+    Process* newProcess = createProcess(execution_time);
+    if (!head) {
+        head = newProcess;
+        newProcess->next = head;
+    }
+    else {
+        Process* temp = head;
+        while (temp->next != head) {
+            temp = temp->next;
+        }
+        temp->next = newProcess;
+        newProcess->next = head;
+    }
+}
+
+void removeProcess(Process*& head, Process*& process) {
+    if (head == process) {
+        if (head->next == head) { // Only one process in the list
+            delete head;
+            head = nullptr;
+        }
+        else {
+            Process* temp = head;
+            while (temp->next != head) {
+                temp = temp->next;
+            }
+            temp->next = head->next; // Bypass the head
+            Process* toDelete = head;
+            head = head->next; // Move head to next process
+            delete toDelete; // Delete old head
+        }
+    }
+    else {
+        Process* temp = head;
+        while (temp->next != process) {
+            temp = temp->next;
+        }
+        temp->next = process->next;
+        delete process;
+    }
+}
+
+void displayProcesses(Process* head) {
+    if (!head) return;
+    Process* temp = head;
+    cout << "[";
+    do {
+        cout << "(P" << temp->process_id << ", Remaining: " << temp->remaining_time << ")";
+        temp = temp->next;
+        if (temp != head) {
+            cout << ", ";
+        }
+    } while (temp != head);
+    cout << "]" << endl;
+}
+
+void schedule(Process*& head, int time_quantum) {
+    if (!head) {
+        cout << "No process to schedule." << endl;
+        return;
+    }
+
+    Process* current = head;
+    int cycle = 1;
+
+    cout << "Initial Processes: ";
+    displayProcesses(head);
+
+    srand(static_cast<unsigned>(time(0)));
+
+    while (head) {
+        cout << "Cycle " << cycle << ": ";
+
+        // Track completion for this cycle
+        bool any_completed = false;
+
+        // Loop through the current processes
+        int num_processes = 0; // Track number of remaining processes
+        do {
+            if (current->remaining_time <= time_quantum) {
+                cout << "P" << current->process_id << " (Completes); ";
+                Process* temp = current->next; // Save next process before removing current
+                removeProcess(head, current);
+                current = temp; // Move to the next process
+                any_completed = true;
+                if (head == nullptr) break; // Break if head is null (all processes completed)
+            }
+            else {
+                current->remaining_time -= time_quantum;
+                cout << "P" << current->process_id << " (Remaining: " << current->remaining_time << "); ";
+                current = current->next;
+            }
+            num_processes++;
+        } while (current != head); // Continue until we circle back to head
+
+        cout << endl;
+
+        // Insert new process with a 30% chance each cycle
+        if (rand() % 10 < 3) {
+            int new_execution_time = rand() % 10 + 1;
+            cout << "New process arrives: P" << next_process_id << " (Execution time: " << new_execution_time << ")" << endl;
+            insertProcess(head, new_execution_time);
+        }
+
+        // Display the current state of processes
+        if (head) {
+            cout << "Processes after cycle " << cycle << ": ";
+            displayProcesses(head);
+        }
+
+        // Move to next cycle
+        cycle++;
+    }
+
+    cout << "All processes completed." << endl;
+}
+
+int main() {
+    Process* head = nullptr;
+    insertProcess(head, 10);
+    insertProcess(head, 5);
+    insertProcess(head, 8);
+
+    int time_quantum = 3;
+    cout << "CPU Time per Process per Cycle: " << time_quantum << endl;
+    schedule(head, time_quantum);
+
+    return 0;
+}
